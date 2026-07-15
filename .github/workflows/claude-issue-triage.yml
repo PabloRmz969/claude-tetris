@@ -46,6 +46,10 @@ jobs:
                  - **Archivos involucrados**.
                  - **Enfoque de solución sugerido** (pasos concretos para implementar).
                  - **Etiquetas asignadas** y por qué.
+               Todo el comentario debe estar escrito en formato Markdown válido y bien
+               formado que GitHub pueda renderizar correctamente (encabezados con `#`/`##`,
+               listas con `-`, bloques de código con \`\`\` y rutas o identificadores entre
+               backticks simples, negritas con `**texto**`, etc.).
             5. RESUMEN EN EL CUERPO: edita el cuerpo del issue para añadir al final una
                sección corta de diagnóstico, envuelta en marcadores para poder actualizarla
                sin duplicar. Recupera el cuerpo actual con `gh issue view --json body`,
