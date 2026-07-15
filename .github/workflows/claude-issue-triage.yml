@@ -1,0 +1,55 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened, edited]
+
+jobs:
+  triage:
+    # Evita bucle infinito: cuando Claude edita el cuerpo del issue se dispara otro
+    # evento `edited`. Solo re-ejecutamos cuando el editor NO es un bot (edición humana).
+    if: github.event.sender.type != 'Bot'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write # necesario para crear/asignar labels, comentar y editar el cuerpo
+      id-token: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Issue Triage
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh issue edit:*),Bash(gh issue comment:*),Bash(gh label list:*),Bash(gh label create:*),Read,Grep,Glob"'
+          prompt: |
+            Eres el triador automático de issues del repositorio ${{ github.repository }}.
+            Analiza el issue #${{ github.event.issue.number }}.
+
+            Pasos:
+            1. Lee el issue con: gh issue view ${{ github.event.issue.number }}
+            2. Explora el código del repositorio (Read/Grep/Glob) para entender la causa
+               probable del problema o el alcance de la solicitud.
+            3. ETIQUETAS: revisa los labels existentes con `gh label list`. Asigna al issue
+               las etiquetas apropiadas (tipo: bug/enhancement/question/documentation;
+               prioridad si aplica). Si una etiqueta necesaria no existe, créala con
+               `gh label create`. Aplícalas con:
+               gh issue edit ${{ github.event.issue.number }} --add-label "<label>"
+            4. DIAGNÓSTICO: publica un comentario en el issue con:
+               gh issue comment ${{ github.event.issue.number }} --body "..."
+               El comentario debe incluir (en español, con encabezados Markdown):
+                 - **Resumen** del problema/solicitud.
+                 - **Causa probable / análisis** (referencia archivos y líneas: `archivo:línea`).
+                 - **Archivos involucrados**.
+                 - **Enfoque de solución sugerido** (pasos concretos para implementar).
+                 - **Etiquetas asignadas** y por qué.
+            5. RESUMEN EN EL CUERPO: edita el cuerpo del issue para añadir al final una
+               sección corta de diagnóstico, envuelta en marcadores para poder actualizarla
+               sin duplicar. Recupera el cuerpo actual con `gh issue view --json body`,
+               elimina cualquier bloque previo entre los marcadores y vuelve a añadirlo:
+               gh issue edit ${{ github.event.issue.number }} --body "<cuerpo>\n\n<!-- claude-triage:start -->\n## 🤖 Diagnóstico de Claude\n<resumen breve>\n<!-- claude-triage:end -->"
+
+            Escribe todo el contenido para humanos en español. No modifiques código ni abras PRs.
